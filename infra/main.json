@@ -1,0 +1,1954 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.35.1.17967",
+      "templateHash": "3807708970311917497"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources"
+      }
+    },
+    "envName": {
+      "type": "string",
+      "defaultValue": "demo",
+      "metadata": {
+        "description": "Environment name"
+      }
+    },
+    "prefix": {
+      "type": "string",
+      "defaultValue": "azzzr",
+      "metadata": {
+        "description": "Prefix to use for resource naming"
+      }
+    },
+    "isZoneRedundant": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Deploys resources in zone-redundant configuration if true, or zonal configuration if false"
+      }
+    },
+    "adminUsername": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Admin username for VMs and databases"
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Admin password for VMs and databases"
+      }
+    }
+  },
+  "variables": {
+    "resourceToken": "[format('{0}-{1}', parameters('prefix'), parameters('envName'))]",
+    "tags": {
+      "Environment": "[parameters('envName')]",
+      "Project": "Zonal-Zone-Redundant-Demo",
+      "DeploymentType": "[if(parameters('isZoneRedundant'), 'Zone-Redundant', 'Zonal')]"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "networkDeployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceToken": {
+            "value": "[variables('resourceToken')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "11560153847213729223"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for all resources"
+              }
+            },
+            "resourceToken": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource name token"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "Tags to apply to all resources"
+              }
+            }
+          },
+          "variables": {
+            "vnetName": "[format('{0}-vnet', parameters('resourceToken'))]",
+            "vnetAddressPrefix": "10.0.0.0/16",
+            "subnets": [
+              {
+                "name": "app-gateway-subnet",
+                "addressPrefix": "10.0.0.0/24",
+                "nsgName": "[format('{0}-appgw-nsg', parameters('resourceToken'))]",
+                "routeTableName": "[format('{0}-appgw-rt', parameters('resourceToken'))]"
+              },
+              {
+                "name": "api-management-subnet",
+                "addressPrefix": "10.0.1.0/24",
+                "nsgName": "[format('{0}-apim-nsg', parameters('resourceToken'))]",
+                "routeTableName": "[format('{0}-apim-rt', parameters('resourceToken'))]"
+              },
+              {
+                "name": "app-subnet",
+                "addressPrefix": "10.0.2.0/24",
+                "nsgName": "[format('{0}-app-nsg', parameters('resourceToken'))]",
+                "routeTableName": "[format('{0}-app-rt', parameters('resourceToken'))]"
+              },
+              {
+                "name": "db-subnet",
+                "addressPrefix": "10.0.3.0/24",
+                "nsgName": "[format('{0}-db-nsg', parameters('resourceToken'))]",
+                "routeTableName": "[format('{0}-db-rt', parameters('resourceToken'))]"
+              }
+            ]
+          },
+          "resources": [
+            {
+              "copy": {
+                "name": "networkSecurityGroups",
+                "count": "[length(variables('subnets'))]"
+              },
+              "type": "Microsoft.Network/networkSecurityGroups",
+              "apiVersion": "2023-05-01",
+              "name": "[variables('subnets')[copyIndex()].nsgName]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "securityRules": [
+                  {
+                    "name": "AllowInbound",
+                    "properties": {
+                      "priority": 100,
+                      "direction": "Inbound",
+                      "access": "Allow",
+                      "protocol": "*",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "sourcePortRange": "*",
+                      "destinationAddressPrefix": "VirtualNetwork",
+                      "destinationPortRange": "*",
+                      "description": "Allow all inbound traffic from VNet"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "copy": {
+                "name": "routeTables",
+                "count": "[length(variables('subnets'))]"
+              },
+              "type": "Microsoft.Network/routeTables",
+              "apiVersion": "2023-05-01",
+              "name": "[variables('subnets')[copyIndex()].routeTableName]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "disableBgpRoutePropagation": false
+              }
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2023-05-01",
+              "name": "[variables('vnetName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "copy": [
+                  {
+                    "name": "subnets",
+                    "count": "[length(variables('subnets'))]",
+                    "input": {
+                      "name": "[variables('subnets')[copyIndex('subnets')].name]",
+                      "properties": {
+                        "addressPrefix": "[variables('subnets')[copyIndex('subnets')].addressPrefix]",
+                        "networkSecurityGroup": {
+                          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('subnets')[copyIndex('subnets')].nsgName)]"
+                        },
+                        "routeTable": {
+                          "id": "[resourceId('Microsoft.Network/routeTables', variables('subnets')[copyIndex('subnets')].routeTableName)]"
+                        }
+                      }
+                    }
+                  }
+                ],
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "[variables('vnetAddressPrefix')]"
+                  ]
+                }
+              },
+              "dependsOn": [
+                "networkSecurityGroups",
+                "routeTables"
+              ]
+            }
+          ],
+          "outputs": {
+            "vnetName": {
+              "type": "string",
+              "value": "[variables('vnetName')]"
+            },
+            "vnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+            },
+            "appGatewaySubnetName": {
+              "type": "string",
+              "value": "[variables('subnets')[0].name]"
+            },
+            "appGatewaySubnetId": {
+              "type": "string",
+              "value": "[format('{0}/subnets/{1}', resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), variables('subnets')[0].name)]"
+            },
+            "apiManagementSubnetName": {
+              "type": "string",
+              "value": "[variables('subnets')[1].name]"
+            },
+            "apiManagementSubnetId": {
+              "type": "string",
+              "value": "[format('{0}/subnets/{1}', resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), variables('subnets')[1].name)]"
+            },
+            "appSubnetName": {
+              "type": "string",
+              "value": "[variables('subnets')[2].name]"
+            },
+            "appSubnetId": {
+              "type": "string",
+              "value": "[format('{0}/subnets/{1}', resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), variables('subnets')[2].name)]"
+            },
+            "dbSubnetName": {
+              "type": "string",
+              "value": "[variables('subnets')[3].name]"
+            },
+            "dbSubnetId": {
+              "type": "string",
+              "value": "[format('{0}/subnets/{1}', resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), variables('subnets')[3].name)]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "proximityDeployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceToken": {
+            "value": "[variables('resourceToken')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "7001796920872668210"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for all resources"
+              }
+            },
+            "resourceToken": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource name token"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "Tags for all resources"
+              }
+            },
+            "availabilityZones": {
+              "type": "array",
+              "defaultValue": [
+                "1",
+                "2",
+                "3"
+              ],
+              "metadata": {
+                "description": "Availability zones to deploy resources in"
+              }
+            }
+          },
+          "resources": [
+            {
+              "copy": {
+                "name": "proximityPlacementGroups",
+                "count": "[length(parameters('availabilityZones'))]"
+              },
+              "type": "Microsoft.Compute/proximityPlacementGroups",
+              "apiVersion": "2023-07-01",
+              "name": "[format('{0}-ppg-zone-{1}', parameters('resourceToken'), parameters('availabilityZones')[copyIndex()])]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "proximityPlacementGroupType": "Standard"
+              }
+            }
+          ],
+          "outputs": {
+            "proximityPlacementGroupIds": {
+              "type": "array",
+              "copy": {
+                "count": "[length(range(0, length(parameters('availabilityZones'))))]",
+                "input": {
+                  "zone": "[parameters('availabilityZones')[range(0, length(parameters('availabilityZones')))[copyIndex()]]]",
+                  "id": "[resourceId('Microsoft.Compute/proximityPlacementGroups', format('{0}-ppg-zone-{1}', parameters('resourceToken'), parameters('availabilityZones')[range(0, length(parameters('availabilityZones')))[copyIndex()]]))]"
+                }
+              }
+            },
+            "proximityPlacementGroupId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Compute/proximityPlacementGroups', format('{0}-ppg-zone-{1}', parameters('resourceToken'), parameters('availabilityZones')[0]))]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "appGatewayDeployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceToken": {
+            "value": "[variables('resourceToken')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          },
+          "isZoneRedundant": {
+            "value": "[parameters('isZoneRedundant')]"
+          },
+          "vnetName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networkDeployment'), '2022-09-01').outputs.vnetName.value]"
+          },
+          "subnetName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networkDeployment'), '2022-09-01').outputs.appGatewaySubnetName.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "4101896969136344048"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for all resources"
+              }
+            },
+            "resourceToken": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource name token"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "Tags to apply to all resources"
+              }
+            },
+            "vnetName": {
+              "type": "string",
+              "metadata": {
+                "description": "Virtual network name"
+              }
+            },
+            "subnetName": {
+              "type": "string",
+              "metadata": {
+                "description": "Subnet name for the Application Gateway"
+              }
+            },
+            "isZoneRedundant": {
+              "type": "bool",
+              "metadata": {
+                "description": "Deploy in zone-redundant mode if true, or zonal if false"
+              }
+            },
+            "availabilityZones": {
+              "type": "array",
+              "defaultValue": [
+                "1",
+                "2",
+                "3"
+              ],
+              "metadata": {
+                "description": "Availability zones to deploy resources in"
+              }
+            }
+          },
+          "variables": {
+            "appGatewayName": "[format('{0}-appgw', parameters('resourceToken'))]",
+            "appGatewayPipName": "[format('{0}-appgw-pip', parameters('resourceToken'))]",
+            "subnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('subnetName'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2023-05-01",
+              "name": "[variables('appGatewayPipName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Standard"
+              },
+              "properties": {
+                "publicIPAllocationMethod": "Static",
+                "dnsSettings": {
+                  "domainNameLabel": "[parameters('resourceToken')]"
+                }
+              },
+              "zones": "[if(parameters('isZoneRedundant'), parameters('availabilityZones'), createArray(parameters('availabilityZones')[0]))]"
+            },
+            {
+              "type": "Microsoft.Network/applicationGateways",
+              "apiVersion": "2023-05-01",
+              "name": "[variables('appGatewayName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "sku": {
+                  "name": "WAF_v2",
+                  "tier": "WAF_v2",
+                  "capacity": "[if(parameters('isZoneRedundant'), 3, 1)]"
+                },
+                "gatewayIPConfigurations": [
+                  {
+                    "name": "appGwIpConfig",
+                    "properties": {
+                      "subnet": {
+                        "id": "[variables('subnetId')]"
+                      }
+                    }
+                  }
+                ],
+                "frontendIPConfigurations": [
+                  {
+                    "name": "appGwFrontendIP",
+                    "properties": {
+                      "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('appGatewayPipName'))]"
+                      }
+                    }
+                  }
+                ],
+                "frontendPorts": [
+                  {
+                    "name": "port_80",
+                    "properties": {
+                      "port": 80
+                    }
+                  }
+                ],
+                "backendAddressPools": [
+                  {
+                    "name": "defaultBackendPool",
+                    "properties": {
+                      "backendAddresses": []
+                    }
+                  }
+                ],
+                "backendHttpSettingsCollection": [
+                  {
+                    "name": "defaultHttpSettings",
+                    "properties": {
+                      "port": 80,
+                      "protocol": "Http",
+                      "cookieBasedAffinity": "Disabled",
+                      "requestTimeout": 20
+                    }
+                  }
+                ],
+                "httpListeners": [
+                  {
+                    "name": "defaultListener",
+                    "properties": {
+                      "frontendIPConfiguration": {
+                        "id": "[resourceId('Microsoft.Network/applicationGateways/frontendIPConfigurations', variables('appGatewayName'), 'appGwFrontendIP')]"
+                      },
+                      "frontendPort": {
+                        "id": "[resourceId('Microsoft.Network/applicationGateways/frontendPorts', variables('appGatewayName'), 'port_80')]"
+                      },
+                      "protocol": "Http"
+                    }
+                  }
+                ],
+                "requestRoutingRules": [
+                  {
+                    "name": "defaultRule",
+                    "properties": {
+                      "ruleType": "Basic",
+                      "priority": 100,
+                      "httpListener": {
+                        "id": "[resourceId('Microsoft.Network/applicationGateways/httpListeners', variables('appGatewayName'), 'defaultListener')]"
+                      },
+                      "backendAddressPool": {
+                        "id": "[resourceId('Microsoft.Network/applicationGateways/backendAddressPools', variables('appGatewayName'), 'defaultBackendPool')]"
+                      },
+                      "backendHttpSettings": {
+                        "id": "[resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection', variables('appGatewayName'), 'defaultHttpSettings')]"
+                      }
+                    }
+                  }
+                ],
+                "webApplicationFirewallConfiguration": {
+                  "enabled": true,
+                  "firewallMode": "Prevention",
+                  "ruleSetType": "OWASP",
+                  "ruleSetVersion": "3.2"
+                }
+              },
+              "zones": "[if(parameters('isZoneRedundant'), parameters('availabilityZones'), createArray(parameters('availabilityZones')[0]))]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', variables('appGatewayPipName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "appGatewayId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/applicationGateways', variables('appGatewayName'))]"
+            },
+            "appGatewayName": {
+              "type": "string",
+              "value": "[variables('appGatewayName')]"
+            },
+            "appGatewayPublicIp": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('appGatewayPipName')), '2023-05-01').ipAddress]"
+            },
+            "appGatewayHostName": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('appGatewayPipName')), '2023-05-01').dnsSettings.fqdn]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'networkDeployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "apimDeployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceToken": {
+            "value": "[variables('resourceToken')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          },
+          "isZoneRedundant": {
+            "value": "[parameters('isZoneRedundant')]"
+          },
+          "vnetName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networkDeployment'), '2022-09-01').outputs.vnetName.value]"
+          },
+          "subnetName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networkDeployment'), '2022-09-01').outputs.apiManagementSubnetName.value]"
+          },
+          "adminEmail": {
+            "value": "admin@example.com"
+          },
+          "adminName": {
+            "value": "API Administrator"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "15234734014164502352"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for all resources"
+              }
+            },
+            "resourceToken": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource name token"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "Tags to apply to all resources"
+              }
+            },
+            "vnetName": {
+              "type": "string",
+              "metadata": {
+                "description": "Virtual network name"
+              }
+            },
+            "subnetName": {
+              "type": "string",
+              "metadata": {
+                "description": "Subnet name for the API Management"
+              }
+            },
+            "isZoneRedundant": {
+              "type": "bool",
+              "metadata": {
+                "description": "Deploy in zone-redundant mode if true, or zonal if false"
+              }
+            },
+            "adminEmail": {
+              "type": "string",
+              "metadata": {
+                "description": "Admin email address for API Management"
+              }
+            },
+            "adminName": {
+              "type": "string",
+              "metadata": {
+                "description": "Admin name for API Management"
+              }
+            }
+          },
+          "variables": {
+            "apimName": "[format('{0}-apim', parameters('resourceToken'))]",
+            "subnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('subnetName'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.ApiManagement/service",
+              "apiVersion": "2023-05-01-preview",
+              "name": "[variables('apimName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Premium",
+                "capacity": "[if(parameters('isZoneRedundant'), 2, 1)]"
+              },
+              "properties": {
+                "publisherEmail": "[parameters('adminEmail')]",
+                "publisherName": "[parameters('adminName')]",
+                "virtualNetworkConfiguration": {
+                  "subnetResourceId": "[variables('subnetId')]"
+                },
+                "virtualNetworkType": "Internal"
+              },
+              "zones": "[if(parameters('isZoneRedundant'), createArray('1', '2', '3'), createArray('1'))]"
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis",
+              "apiVersion": "2023-05-01-preview",
+              "name": "[format('{0}/{1}', variables('apimName'), 'sample-api')]",
+              "properties": {
+                "displayName": "Sample API",
+                "description": "Sample API for demonstration",
+                "path": "sample",
+                "protocols": [
+                  "https"
+                ],
+                "subscriptionRequired": true
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service', variables('apimName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/operations",
+              "apiVersion": "2023-05-01-preview",
+              "name": "[format('{0}/{1}/{2}', variables('apimName'), 'sample-api', 'get-operation')]",
+              "properties": {
+                "displayName": "Get Sample Data",
+                "method": "GET",
+                "urlTemplate": "/",
+                "description": "Get sample data"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis', variables('apimName'), 'sample-api')]"
+              ]
+            }
+          ],
+          "outputs": {
+            "apiManagementId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.ApiManagement/service', variables('apimName'))]"
+            },
+            "apiManagementName": {
+              "type": "string",
+              "value": "[variables('apimName')]"
+            },
+            "apiManagementEndpoint": {
+              "type": "string",
+              "value": "[format('https://{0}.azure-api.net', variables('apimName'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'networkDeployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "redisDeployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceToken": {
+            "value": "[variables('resourceToken')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          },
+          "isZoneRedundant": {
+            "value": "[parameters('isZoneRedundant')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "15382086152754515937"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for all resources"
+              }
+            },
+            "resourceToken": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource name token"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "Tags to apply to all resources"
+              }
+            },
+            "isZoneRedundant": {
+              "type": "bool",
+              "metadata": {
+                "description": "Deploy in zone-redundant mode if true, or zonal if false"
+              }
+            },
+            "availabilityZones": {
+              "type": "array",
+              "defaultValue": [
+                "1",
+                "2",
+                "3"
+              ],
+              "metadata": {
+                "description": "Availability zones to deploy resources in"
+              }
+            }
+          },
+          "variables": {
+            "redisName": "[format('{0}-redis', parameters('resourceToken'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Cache/redis",
+              "apiVersion": "2023-05-01",
+              "name": "[variables('redisName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "sku": {
+                  "name": "Premium",
+                  "family": "P",
+                  "capacity": "[if(parameters('isZoneRedundant'), 2, 1)]"
+                },
+                "enableNonSslPort": false,
+                "minimumTlsVersion": "1.2",
+                "publicNetworkAccess": "Enabled",
+                "redisConfiguration": {
+                  "maxmemory-policy": "allkeys-lru"
+                },
+                "zonalConfiguration": "[if(parameters('isZoneRedundant'), 'Enabled', 'Disabled')]"
+              },
+              "zones": "[if(parameters('isZoneRedundant'), parameters('availabilityZones'), createArray(parameters('availabilityZones')[0]))]"
+            },
+            {
+              "type": "Microsoft.Cache/redis/firewallRules",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', variables('redisName'), 'AllowAll')]",
+              "properties": {
+                "startIP": "0.0.0.0",
+                "endIP": "255.255.255.255"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Cache/redis', variables('redisName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "redisCacheId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Cache/redis', variables('redisName'))]"
+            },
+            "redisCacheName": {
+              "type": "string",
+              "value": "[variables('redisName')]"
+            },
+            "redisCacheHostName": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Cache/redis', variables('redisName')), '2023-05-01').hostName]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "dbDeployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceToken": {
+            "value": "[variables('resourceToken')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          },
+          "isZoneRedundant": {
+            "value": "[parameters('isZoneRedundant')]"
+          },
+          "adminUsername": {
+            "value": "[parameters('adminUsername')]"
+          },
+          "adminPassword": {
+            "value": "[parameters('adminPassword')]"
+          },
+          "vnetName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networkDeployment'), '2022-09-01').outputs.vnetName.value]"
+          },
+          "subnetName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networkDeployment'), '2022-09-01').outputs.dbSubnetName.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "1202167434818112557"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for all resources"
+              }
+            },
+            "resourceToken": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource name token"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "Tags to apply to all resources"
+              }
+            },
+            "vnetName": {
+              "type": "string",
+              "metadata": {
+                "description": "Virtual network name"
+              }
+            },
+            "subnetName": {
+              "type": "string",
+              "metadata": {
+                "description": "Subnet name for the database resources"
+              }
+            },
+            "adminUsername": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Admin username for database"
+              }
+            },
+            "adminPassword": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Admin password for database"
+              }
+            },
+            "isZoneRedundant": {
+              "type": "bool",
+              "metadata": {
+                "description": "Deploy in zone-redundant mode if true, or zonal if false"
+              }
+            },
+            "availabilityZones": {
+              "type": "array",
+              "defaultValue": [
+                "1",
+                "2",
+                "3"
+              ],
+              "metadata": {
+                "description": "Availability zones to deploy resources in"
+              }
+            }
+          },
+          "variables": {
+            "sqlServerName": "[format('{0}-sql', parameters('resourceToken'))]",
+            "sqlDatabaseName": "[format('{0}-db', parameters('resourceToken'))]",
+            "subnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('subnetName'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "[format('privatelink{0}', environment().suffixes.sqlServerHostname)]",
+              "location": "global",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2020-06-01",
+              "name": "[format('{0}/{1}', format('privatelink{0}', environment().suffixes.sqlServerHostname), format('{0}-link', parameters('resourceToken')))]",
+              "location": "global",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "registrationEnabled": false,
+                "virtualNetwork": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', format('privatelink{0}', environment().suffixes.sqlServerHostname))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Sql/servers",
+              "apiVersion": "2023-05-01-preview",
+              "name": "[variables('sqlServerName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "administratorLogin": "[parameters('adminUsername')]",
+                "administratorLoginPassword": "[parameters('adminPassword')]",
+                "version": "12.0",
+                "publicNetworkAccess": "Disabled"
+              }
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}-sql-pe', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "subnet": {
+                  "id": "[variables('subnetId')]"
+                },
+                "privateLinkServiceConnections": [
+                  {
+                    "name": "[format('{0}-sql-plsc', parameters('resourceToken'))]",
+                    "properties": {
+                      "privateLinkServiceId": "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]",
+                      "groupIds": [
+                        "sqlServer"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', format('{0}-sql-pe', parameters('resourceToken')), 'default')]",
+              "properties": {
+                "privateDnsZoneConfigs": [
+                  {
+                    "name": "config1",
+                    "properties": {
+                      "privateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', format('privatelink{0}', environment().suffixes.sqlServerHostname))]"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', format('privatelink{0}', environment().suffixes.sqlServerHostname))]",
+                "[resourceId('Microsoft.Network/privateEndpoints', format('{0}-sql-pe', parameters('resourceToken')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Sql/servers/databases",
+              "apiVersion": "2023-05-01-preview",
+              "name": "[format('{0}/{1}', variables('sqlServerName'), variables('sqlDatabaseName'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Premium",
+                "tier": "Premium",
+                "capacity": "[if(parameters('isZoneRedundant'), 8, 4)]"
+              },
+              "properties": {
+                "collation": "SQL_Latin1_General_CP1_CI_AS",
+                "maxSizeBytes": 1073741824,
+                "zoneRedundant": "[parameters('isZoneRedundant')]",
+                "requestedBackupStorageRedundancy": "[if(parameters('isZoneRedundant'), 'Zone', 'Local')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
+              ]
+            },
+            {
+              "condition": "[parameters('isZoneRedundant')]",
+              "type": "Microsoft.Sql/servers/failoverGroups",
+              "apiVersion": "2023-05-01-preview",
+              "name": "[format('{0}/{1}', variables('sqlServerName'), format('{0}-fog', parameters('resourceToken')))]",
+              "properties": {
+                "readWriteEndpoint": {
+                  "failoverPolicy": "Automatic",
+                  "failoverWithDataLossGracePeriodMinutes": 60
+                },
+                "readOnlyEndpoint": {
+                  "failoverPolicy": "Disabled"
+                },
+                "partnerServers": [],
+                "databases": [
+                  "[resourceId('Microsoft.Sql/servers/databases', variables('sqlServerName'), variables('sqlDatabaseName'))]"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', variables('sqlServerName'), variables('sqlDatabaseName'))]",
+                "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "sqlServerName": {
+              "type": "string",
+              "value": "[variables('sqlServerName')]"
+            },
+            "sqlServerFqdn": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Sql/servers', variables('sqlServerName')), '2023-05-01-preview').fullyQualifiedDomainName]"
+            },
+            "sqlDatabaseName": {
+              "type": "string",
+              "value": "[variables('sqlDatabaseName')]"
+            },
+            "failoverGroupId": {
+              "type": "string",
+              "value": "[if(parameters('isZoneRedundant'), resourceId('Microsoft.Sql/servers/failoverGroups', variables('sqlServerName'), format('{0}-fog', parameters('resourceToken'))), 'Not deployed in zonal configuration')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'networkDeployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "computeDeployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceToken": {
+            "value": "[variables('resourceToken')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          },
+          "isZoneRedundant": {
+            "value": "[parameters('isZoneRedundant')]"
+          },
+          "vnetName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networkDeployment'), '2022-09-01').outputs.vnetName.value]"
+          },
+          "subnetName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networkDeployment'), '2022-09-01').outputs.appSubnetName.value]"
+          },
+          "proximityPlacementGroupIds": "[if(parameters('isZoneRedundant'), createObject('value', reference(resourceId('Microsoft.Resources/deployments', 'proximityDeployment'), '2022-09-01').outputs.proximityPlacementGroupIds.value), createObject('value', createArray(createObject('zone', '1', 'id', reference(resourceId('Microsoft.Resources/deployments', 'proximityDeployment'), '2022-09-01').outputs.proximityPlacementGroupId.value))))]",
+          "adminUsername": {
+            "value": "[parameters('adminUsername')]"
+          },
+          "adminPassword": {
+            "value": "[parameters('adminPassword')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "9329670777837460171"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for all resources"
+              }
+            },
+            "resourceToken": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource name token"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "Tags to apply to all resources"
+              }
+            },
+            "vnetName": {
+              "type": "string",
+              "metadata": {
+                "description": "Virtual network name"
+              }
+            },
+            "subnetName": {
+              "type": "string",
+              "metadata": {
+                "description": "Subnet name for the compute resources"
+              }
+            },
+            "adminUsername": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Admin username for VMs"
+              }
+            },
+            "adminPassword": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Admin password for VMs"
+              }
+            },
+            "proximityPlacementGroupIds": {
+              "type": "array",
+              "metadata": {
+                "description": "Proximity placement group IDs for each zone"
+              }
+            },
+            "isZoneRedundant": {
+              "type": "bool",
+              "metadata": {
+                "description": "Deploy in zone-redundant mode if true, or zonal if false"
+              }
+            },
+            "availabilityZones": {
+              "type": "array",
+              "defaultValue": [
+                "1",
+                "2",
+                "3"
+              ],
+              "metadata": {
+                "description": "Availability zones to deploy resources in"
+              }
+            }
+          },
+          "variables": {
+            "copy": [
+              {
+                "name": "appServers",
+                "count": "[length(range(0, if(parameters('isZoneRedundant'), 3, 1)))]",
+                "input": {
+                  "name": "[format('{0}-app-{1}', parameters('resourceToken'), add(range(0, if(parameters('isZoneRedundant'), 3, 1))[copyIndex('appServers')], 1))]",
+                  "zone": "[parameters('availabilityZones')[mod(range(0, if(parameters('isZoneRedundant'), 3, 1))[copyIndex('appServers')], length(parameters('availabilityZones')))]]",
+                  "ppgId": "[parameters('proximityPlacementGroupIds')[mod(range(0, if(parameters('isZoneRedundant'), 3, 1))[copyIndex('appServers')], length(parameters('proximityPlacementGroupIds')))].id]",
+                  "role": "app"
+                }
+              },
+              {
+                "name": "esbServers",
+                "count": "[length(range(0, if(parameters('isZoneRedundant'), 3, 1)))]",
+                "input": {
+                  "name": "[format('{0}-esb-{1}', parameters('resourceToken'), add(range(0, if(parameters('isZoneRedundant'), 3, 1))[copyIndex('esbServers')], 1))]",
+                  "zone": "[parameters('availabilityZones')[mod(range(0, if(parameters('isZoneRedundant'), 3, 1))[copyIndex('esbServers')], length(parameters('availabilityZones')))]]",
+                  "ppgId": "[parameters('proximityPlacementGroupIds')[mod(range(0, if(parameters('isZoneRedundant'), 3, 1))[copyIndex('esbServers')], length(parameters('proximityPlacementGroupIds')))].id]",
+                  "role": "esb"
+                }
+              }
+            ],
+            "$fxv#0": "IyEvYmluL2Jhc2gKIyBBcHAgU2VydmVyIFNldHVwIFNjcmlwdAoKZWNobyAiSW5zdGFsbGluZyBkZXBlbmRlbmNpZXMuLi4iCmFwdC1nZXQgdXBkYXRlCmFwdC1nZXQgaW5zdGFsbCAteSBuZ2lueAoKIyBDb25maWd1cmUgbmdpbngKY2F0ID4gL3Zhci93d3cvaHRtbC9pbmRleC5odG1sIDw8RU9GCjwhRE9DVFlQRSBodG1sPgo8aHRtbD4KPGhlYWQ+CiAgICA8dGl0bGU+QXBwIFNlcnZlciBEZW1vPC90aXRsZT4KPC9oZWFkPgo8Ym9keT4KICAgIDxoMT5BcHAgU2VydmVyPC9oMT4KICAgIDxwPkluc3RhbmNlOiAkKGhvc3RuYW1lKTwvcD4KICAgIDxwPlpvbmU6ICQoY3VybCAtcyAtSCBNZXRhZGF0YTp0cnVlIC0tbm9wcm94eSAiKiIgImh0dHA6Ly8xNjkuMjU0LjE2OS4yNTQvbWV0YWRhdGEvaW5zdGFuY2UvY29tcHV0ZS96b25lP2FwaS12ZXJzaW9uPTIwMjEtMDItMDEmZm9ybWF0PXRleHQiKTwvcD4KPC9ib2R5Pgo8L2h0bWw+CkVPRgoKIyBTdGFydCBzZXJ2aWNlcwpzeXN0ZW1jdGwgZW5hYmxlIG5naW54CnN5c3RlbWN0bCByZXN0YXJ0IG5naW54CgplY2hvICJBcHAgc2VydmVyIHNldHVwIGNvbXBsZXRlZC4iDQo=",
+            "$fxv#1": "IyEvYmluL2Jhc2gKIyBFU0IgU2VydmVyIFNldHVwIFNjcmlwdAoKZWNobyAiSW5zdGFsbGluZyBkZXBlbmRlbmNpZXMuLi4iCmFwdC1nZXQgdXBkYXRlCmFwdC1nZXQgaW5zdGFsbCAteSBvcGVuamRrLTExLWpkawoKIyBFU0IgU2V0dXAgd291bGQgZ28gaGVyZSBpbiBhIHJlYWwgZGVwbG95bWVudApta2RpciAtcCAvb3B0L2VzYgoKIyBDcmVhdGUgYSBzaW1wbGUgc3RhdHVzIGVuZHBvaW50CmNhdCA+IC9vcHQvZXNiL3N0YXR1cy5zaCA8PEVPRgojIS9iaW4vYmFzaAplY2hvICJDb250ZW50LXR5cGU6IHRleHQvaHRtbCIKZWNobyAiIgplY2hvICI8IURPQ1RZUEUgaHRtbD4iCmVjaG8gIjxodG1sPiIKZWNobyAiPGhlYWQ+PHRpdGxlPkVTQiBTdGF0dXM8L3RpdGxlPjwvaGVhZD4iCmVjaG8gIjxib2R5PiIKZWNobyAiPGgxPkVTQiBTZXJ2ZXI8L2gxPiIKZWNobyAiPHA+SW5zdGFuY2U6IFwkKGhvc3RuYW1lKTwvcD4iCmVjaG8gIjxwPlpvbmU6IFwkKGN1cmwgLXMgLUggTWV0YWRhdGE6dHJ1ZSAtLW5vcHJveHkgJyonICdodHRwOi8vMTY5LjI1NC4xNjkuMjU0L21ldGFkYXRhL2luc3RhbmNlL2NvbXB1dGUvem9uZT9hcGktdmVyc2lvbj0yMDIxLTAyLTAxJmZvcm1hdD10ZXh0Jyk8L3A+IgplY2hvICI8L2JvZHk+IgplY2hvICI8L2h0bWw+IgpFT0YKCmNobW9kICt4IC9vcHQvZXNiL3N0YXR1cy5zaAoKZWNobyAiRVNCIHNlcnZlciBzZXR1cCBjb21wbGV0ZWQuIg0K",
+            "subnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('subnetName'))]",
+            "vmSize": "Standard_D4s_v3",
+            "allVMs": "[concat(variables('appServers'), variables('esbServers'))]"
+          },
+          "resources": [
+            {
+              "copy": {
+                "name": "networkInterfaces",
+                "count": "[length(variables('allVMs'))]"
+              },
+              "type": "Microsoft.Network/networkInterfaces",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}-nic', variables('allVMs')[copyIndex()].name)]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "enableAcceleratedNetworking": true,
+                "ipConfigurations": [
+                  {
+                    "name": "ipconfig",
+                    "properties": {
+                      "subnet": {
+                        "id": "[variables('subnetId')]"
+                      },
+                      "privateIPAllocationMethod": "Dynamic"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "copy": {
+                "name": "virtualMachines",
+                "count": "[length(variables('allVMs'))]"
+              },
+              "type": "Microsoft.Compute/virtualMachines",
+              "apiVersion": "2023-07-01",
+              "name": "[variables('allVMs')[copyIndex()].name]",
+              "location": "[parameters('location')]",
+              "tags": "[union(parameters('tags'), createObject('Role', variables('allVMs')[copyIndex()].role))]",
+              "properties": {
+                "proximityPlacementGroup": "[if(parameters('isZoneRedundant'), null(), createObject('id', variables('allVMs')[copyIndex()].ppgId))]",
+                "hardwareProfile": {
+                  "vmSize": "[variables('vmSize')]"
+                },
+                "storageProfile": {
+                  "osDisk": {
+                    "createOption": "FromImage",
+                    "managedDisk": {
+                      "storageAccountType": "Premium_LRS"
+                    }
+                  },
+                  "imageReference": {
+                    "publisher": "Canonical",
+                    "offer": "0001-com-ubuntu-server-jammy",
+                    "sku": "22_04-lts-gen2",
+                    "version": "latest"
+                  }
+                },
+                "networkProfile": {
+                  "networkInterfaces": [
+                    {
+                      "id": "[resourceId('Microsoft.Network/networkInterfaces', format('{0}-nic', variables('allVMs')[copyIndex()].name))]"
+                    }
+                  ]
+                },
+                "osProfile": {
+                  "computerName": "[variables('allVMs')[copyIndex()].name]",
+                  "adminUsername": "[parameters('adminUsername')]",
+                  "adminPassword": "[parameters('adminPassword')]"
+                }
+              },
+              "zones": [
+                "[variables('allVMs')[copyIndex()].zone]"
+              ],
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', format('{0}-nic', variables('allVMs')[copyIndex()].name))]"
+              ]
+            },
+            {
+              "copy": {
+                "name": "vmExtensions",
+                "count": "[length(variables('allVMs'))]"
+              },
+              "type": "Microsoft.Compute/virtualMachines/extensions",
+              "apiVersion": "2023-07-01",
+              "name": "[format('{0}/CustomScript', variables('allVMs')[copyIndex()].name)]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "publisher": "Microsoft.Azure.Extensions",
+                "type": "CustomScript",
+                "typeHandlerVersion": "2.1",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                  "script": "[if(equals(variables('allVMs')[copyIndex()].role, 'app'), variables('$fxv#0'), variables('$fxv#1'))]"
+                },
+                "protectedSettings": {}
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines', variables('allVMs')[copyIndex()].name)]"
+              ]
+            }
+          ],
+          "outputs": {
+            "vmIds": {
+              "type": "array",
+              "copy": {
+                "count": "[length(variables('allVMs'))]",
+                "input": {
+                  "name": "[variables('allVMs')[copyIndex()].name]",
+                  "id": "[resourceId('Microsoft.Compute/virtualMachines', variables('allVMs')[copyIndex()].name)]",
+                  "privateIp": "[reference(resourceId('Microsoft.Network/networkInterfaces', format('{0}-nic', variables('allVMs')[copyIndex()].name)), '2023-05-01').ipConfigurations[0].properties.privateIPAddress]",
+                  "role": "[variables('allVMs')[copyIndex()].role]",
+                  "zone": "[variables('allVMs')[copyIndex()].zone]"
+                }
+              }
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'networkDeployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'proximityDeployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "frontDoorDeployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceToken": {
+            "value": "[variables('resourceToken')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          },
+          "appGatewayHostName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'appGatewayDeployment'), '2022-09-01').outputs.appGatewayHostName.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "13046458624431179645"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "defaultValue": "global",
+              "metadata": {
+                "description": "Location for all resources - uses global for Front Door"
+              }
+            },
+            "resourceToken": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource name token"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "Tags to apply to all resources"
+              }
+            },
+            "appGatewayHostName": {
+              "type": "string",
+              "metadata": {
+                "description": "Hostname of the Application Gateway"
+              }
+            }
+          },
+          "variables": {
+            "frontDoorName": "[format('{0}-fd', parameters('resourceToken'))]",
+            "frontDoorEndpointName": "[format('{0}-endpoint', parameters('resourceToken'))]",
+            "frontDoorOriginGroupName": "[format('{0}-origin-group', parameters('resourceToken'))]",
+            "frontDoorOriginName": "[format('{0}-origin', parameters('resourceToken'))]",
+            "frontDoorRouteName": "[format('{0}-route', parameters('resourceToken'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Cdn/profiles",
+              "apiVersion": "2023-05-01",
+              "name": "[variables('frontDoorName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Standard_AzureFrontDoor"
+              }
+            },
+            {
+              "type": "Microsoft.Cdn/profiles/afdEndpoints",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', variables('frontDoorName'), variables('frontDoorEndpointName'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "enabledState": "Enabled"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Cdn/profiles', variables('frontDoorName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Cdn/profiles/originGroups",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', variables('frontDoorName'), variables('frontDoorOriginGroupName'))]",
+              "properties": {
+                "loadBalancingSettings": {
+                  "sampleSize": 4,
+                  "successfulSamplesRequired": 3,
+                  "additionalLatencyInMilliseconds": 50
+                },
+                "healthProbeSettings": {
+                  "probePath": "/",
+                  "probeRequestType": "HEAD",
+                  "probeProtocol": "Http",
+                  "probeIntervalInSeconds": 100
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Cdn/profiles', variables('frontDoorName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Cdn/profiles/originGroups/origins",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}/{2}', variables('frontDoorName'), variables('frontDoorOriginGroupName'), variables('frontDoorOriginName'))]",
+              "properties": {
+                "hostName": "[parameters('appGatewayHostName')]",
+                "httpPort": 80,
+                "httpsPort": 443,
+                "originHostHeader": "[parameters('appGatewayHostName')]",
+                "priority": 1,
+                "weight": 1000,
+                "enabledState": "Enabled"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Cdn/profiles/originGroups', variables('frontDoorName'), variables('frontDoorOriginGroupName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Cdn/profiles/afdEndpoints/routes",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}/{2}', variables('frontDoorName'), variables('frontDoorEndpointName'), variables('frontDoorRouteName'))]",
+              "properties": {
+                "originGroup": {
+                  "id": "[resourceId('Microsoft.Cdn/profiles/originGroups', variables('frontDoorName'), variables('frontDoorOriginGroupName'))]"
+                },
+                "originPath": "/",
+                "supportedProtocols": [
+                  "Http",
+                  "Https"
+                ],
+                "patternsToMatch": [
+                  "/*"
+                ],
+                "forwardingProtocol": "HttpsOnly",
+                "linkToDefaultDomain": "Enabled",
+                "httpsRedirect": "Enabled"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Cdn/profiles/afdEndpoints', variables('frontDoorName'), variables('frontDoorEndpointName'))]",
+                "[resourceId('Microsoft.Cdn/profiles/originGroups', variables('frontDoorName'), variables('frontDoorOriginGroupName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "frontDoorId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Cdn/profiles', variables('frontDoorName'))]"
+            },
+            "frontDoorEndpoint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Cdn/profiles/afdEndpoints', variables('frontDoorName'), variables('frontDoorEndpointName')), '2023-05-01').hostName]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'appGatewayDeployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "monitoringDeployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceToken": {
+            "value": "[variables('resourceToken')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "1721264759191425670"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for all resources"
+              }
+            },
+            "resourceToken": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource name token"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "Tags to apply to all resources"
+              }
+            }
+          },
+          "variables": {
+            "logAnalyticsWorkspaceName": "[format('{0}-law', parameters('resourceToken'))]",
+            "applicationInsightsName": "[format('{0}-ai', parameters('resourceToken'))]",
+            "dashboardName": "[format('{0}-dashboard', parameters('resourceToken'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2022-10-01",
+              "name": "[variables('logAnalyticsWorkspaceName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "sku": {
+                  "name": "PerGB2018"
+                },
+                "retentionInDays": 30,
+                "features": {
+                  "enableLogAccessUsingOnlyResourcePermissions": true
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Insights/components",
+              "apiVersion": "2020-02-02",
+              "name": "[variables('applicationInsightsName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "kind": "web",
+              "properties": {
+                "Application_Type": "web",
+                "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsWorkspaceName'))]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsWorkspaceName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Portal/dashboards",
+              "apiVersion": "2020-09-01-preview",
+              "name": "[variables('dashboardName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "lenses": [
+                  {
+                    "order": 0,
+                    "parts": [
+                      {
+                        "position": {
+                          "x": 0,
+                          "y": 0,
+                          "colSpan": 6,
+                          "rowSpan": 4
+                        },
+                        "metadata": {
+                          "inputs": [
+                            {
+                              "name": "resourceTypeMode",
+                              "isOptional": true,
+                              "value": "workspace"
+                            },
+                            {
+                              "name": "ComponentId",
+                              "isOptional": true,
+                              "value": {
+                                "SubscriptionId": "[subscription().subscriptionId]",
+                                "ResourceGroup": "[resourceGroup().name]",
+                                "Name": "[variables('logAnalyticsWorkspaceName')]"
+                              }
+                            }
+                          ],
+                          "type": "Extension/AppInsightsExtension/PartType/AnalyticsGridTile",
+                          "settings": {
+                            "content": {
+                              "Query": "Heartbeat | summarize by Computer, Category",
+                              "GridColumnsWidth": {
+                                "Computer": "200px",
+                                "Category": "200px"
+                              }
+                            }
+                          },
+                          "asset": {
+                            "idInputName": "ComponentId",
+                            "type": "ApplicationInsights"
+                          }
+                        }
+                      },
+                      {
+                        "position": {
+                          "x": 6,
+                          "y": 0,
+                          "colSpan": 6,
+                          "rowSpan": 4
+                        },
+                        "metadata": {
+                          "inputs": [
+                            {
+                              "name": "resourceTypeMode",
+                              "isOptional": true,
+                              "value": "workspace"
+                            },
+                            {
+                              "name": "ComponentId",
+                              "isOptional": true,
+                              "value": {
+                                "SubscriptionId": "[subscription().subscriptionId]",
+                                "ResourceGroup": "[resourceGroup().name]",
+                                "Name": "[variables('logAnalyticsWorkspaceName')]"
+                              }
+                            }
+                          ],
+                          "type": "Extension/AppInsightsExtension/PartType/AnalyticsLineChartTile",
+                          "settings": {
+                            "content": {
+                              "Query": "Perf | where ObjectName == \"Processor\" and CounterName == \"% Processor Time\" | summarize AggregatedValue = avg(CounterValue) by Computer, bin(TimeGenerated, 15min)"
+                            }
+                          },
+                          "asset": {
+                            "idInputName": "ComponentId",
+                            "type": "ApplicationInsights"
+                          }
+                        }
+                      },
+                      {
+                        "position": {
+                          "x": 0,
+                          "y": 4,
+                          "colSpan": 12,
+                          "rowSpan": 3
+                        },
+                        "metadata": {
+                          "inputs": [
+                            {
+                              "name": "resourceTypeMode",
+                              "isOptional": true,
+                              "value": "workspace"
+                            },
+                            {
+                              "name": "ComponentId",
+                              "isOptional": true,
+                              "value": {
+                                "SubscriptionId": "[subscription().subscriptionId]",
+                                "ResourceGroup": "[resourceGroup().name]",
+                                "Name": "[variables('logAnalyticsWorkspaceName')]"
+                              }
+                            }
+                          ],
+                          "type": "Extension/AppInsightsExtension/PartType/AnalyticsBarChartTile",
+                          "settings": {
+                            "content": {
+                              "Query": "Perf | where ObjectName == \"Memory\" and CounterName == \"Available MBytes\" | summarize AggregatedValue = avg(CounterValue) by Computer"
+                            }
+                          },
+                          "asset": {
+                            "idInputName": "ComponentId",
+                            "type": "ApplicationInsights"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "metadata": {
+                  "model": {
+                    "timeRange": {
+                      "value": {
+                        "relative": {
+                          "duration": 24,
+                          "timeUnit": 1
+                        }
+                      },
+                      "type": "MsPortalFx.Composition.Configuration.ValueTypes.TimeRange"
+                    }
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsWorkspaceName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Insights/metricAlerts",
+              "apiVersion": "2018-03-01",
+              "name": "[format('{0}-latency-alert', parameters('resourceToken'))]",
+              "location": "global",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "description": "Alert on high latency",
+                "severity": 2,
+                "enabled": true,
+                "scopes": [
+                  "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]"
+                ],
+                "evaluationFrequency": "PT1M",
+                "windowSize": "PT5M",
+                "criteria": {
+                  "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria",
+                  "allOf": [
+                    {
+                      "name": "High latency",
+                      "metricName": "requests/duration",
+                      "operator": "GreaterThan",
+                      "threshold": 1000,
+                      "timeAggregation": "Average",
+                      "criterionType": "StaticThresholdCriterion"
+                    }
+                  ]
+                },
+                "actions": []
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Insights/metricAlerts",
+              "apiVersion": "2018-03-01",
+              "name": "[format('{0}-availability-alert', parameters('resourceToken'))]",
+              "location": "global",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "description": "Alert on low availability",
+                "severity": 0,
+                "enabled": true,
+                "scopes": [
+                  "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]"
+                ],
+                "evaluationFrequency": "PT1M",
+                "windowSize": "PT5M",
+                "criteria": {
+                  "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria",
+                  "allOf": [
+                    {
+                      "name": "Low availability",
+                      "metricName": "availabilityResults/availabilityPercentage",
+                      "operator": "LessThan",
+                      "threshold": 90,
+                      "timeAggregation": "Average",
+                      "criterionType": "StaticThresholdCriterion"
+                    }
+                  ]
+                },
+                "actions": []
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "logAnalyticsWorkspaceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsWorkspaceName'))]"
+            },
+            "workspaceName": {
+              "type": "string",
+              "value": "[variables('logAnalyticsWorkspaceName')]"
+            },
+            "applicationInsightsId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]"
+            },
+            "applicationInsightsInstrumentationKey": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Insights/components', variables('applicationInsightsName')), '2020-02-02').InstrumentationKey]"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "resourceToken": {
+      "type": "string",
+      "value": "[variables('resourceToken')]"
+    },
+    "frontDoorEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'frontDoorDeployment'), '2022-09-01').outputs.frontDoorEndpoint.value]"
+    },
+    "appGatewayPublicIp": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'appGatewayDeployment'), '2022-09-01').outputs.appGatewayPublicIp.value]"
+    },
+    "apiManagementEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'apimDeployment'), '2022-09-01').outputs.apiManagementEndpoint.value]"
+    },
+    "redisCacheHostName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'redisDeployment'), '2022-09-01').outputs.redisCacheHostName.value]"
+    },
+    "sqlServerFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'dbDeployment'), '2022-09-01').outputs.sqlServerFqdn.value]"
+    },
+    "monitoringWorkspaceName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'monitoringDeployment'), '2022-09-01').outputs.workspaceName.value]"
+    },
+    "deploymentType": {
+      "type": "string",
+      "value": "[if(parameters('isZoneRedundant'), 'Zone-Redundant (High Availability)', 'Zonal (Low Latency)')]"
+    }
+  }
+}

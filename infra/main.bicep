@@ -46,7 +46,6 @@ module proximityModule 'modules/proximitygroups.bicep' = {
     location: location
     resourceToken: resourceToken
     tags: tags
-    isZoneRedundant: isZoneRedundant
   }
 }
 
@@ -58,7 +57,8 @@ module appGatewayModule 'modules/appgateway.bicep' = {
     resourceToken: resourceToken
     tags: tags
     isZoneRedundant: isZoneRedundant
-    appGatewaySubnetId: networkModule.outputs.appGatewaySubnetId
+    vnetName: networkModule.outputs.vnetName
+    subnetName: networkModule.outputs.appGatewaySubnetName
   }
 }
 
@@ -70,7 +70,10 @@ module apimModule 'modules/apim.bicep' = {
     resourceToken: resourceToken
     tags: tags
     isZoneRedundant: isZoneRedundant
-    apiManagementSubnetId: networkModule.outputs.apiManagementSubnetId
+    vnetName: networkModule.outputs.vnetName
+    subnetName: networkModule.outputs.apiManagementSubnetName
+    adminEmail: 'admin@example.com'
+    adminName: 'API Administrator'
   }
 }
 
@@ -95,7 +98,8 @@ module dbModule 'modules/database.bicep' = {
     isZoneRedundant: isZoneRedundant
     adminUsername: adminUsername
     adminPassword: adminPassword
-    dbSubnetId: networkModule.outputs.dbSubnetId
+    vnetName: networkModule.outputs.vnetName
+    subnetName: networkModule.outputs.dbSubnetName
   }
 }
 
@@ -107,8 +111,14 @@ module computeModule 'modules/compute.bicep' = {
     resourceToken: resourceToken
     tags: tags
     isZoneRedundant: isZoneRedundant
-    appSubnetId: networkModule.outputs.appSubnetId
-    proximityPlacementGroupId: isZoneRedundant ? '' : proximityModule.outputs.proximityPlacementGroupId
+    vnetName: networkModule.outputs.vnetName
+    subnetName: networkModule.outputs.appSubnetName
+    proximityPlacementGroupIds: isZoneRedundant ? proximityModule.outputs.proximityPlacementGroupIds : [
+      {
+        zone: '1'
+        id: proximityModule.outputs.proximityPlacementGroupId
+      }
+    ]
     adminUsername: adminUsername
     adminPassword: adminPassword
   }

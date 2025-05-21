@@ -135,7 +135,10 @@ resource vmExtensions 'Microsoft.Compute/virtualMachines/extensions@2023-07-01' 
     typeHandlerVersion: '2.1'
     autoUpgradeMinorVersion: true
     settings: {
-      script: loadFileAsBase64('scripts/setup-${vm.role}.sh')
+      // Use inline scripts instead of file loading
+      script: vm.role == 'app' 
+        ? base64('#!/bin/bash\necho "Setting up App server"\napt-get update\napt-get install -y nginx\necho "App server setup complete" > /tmp/setup-complete.log')
+        : base64('#!/bin/bash\necho "Setting up ESB server"\napt-get update\napt-get install -y redis-server\necho "ESB server setup complete" > /tmp/setup-complete.log')
     }
     protectedSettings: {}
   }
