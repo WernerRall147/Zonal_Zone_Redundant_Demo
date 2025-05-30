@@ -14,7 +14,6 @@ param prefix string = 'azzzr'
 param isZoneRedundant bool = true
 
 @description('Admin username for VMs and databases')
-@secure()
 param adminUsername string 
 
 @description('Admin password for VMs and databases')
@@ -62,20 +61,20 @@ module appGatewayModule 'modules/appgateway.bicep' = {
   }
 }
 
-// Deploy API Management
-module apimModule 'modules/apim.bicep' = {
-  name: 'apimDeployment' 
-  params: {
-    location: location
-    resourceToken: resourceToken
-    tags: tags
-    isZoneRedundant: isZoneRedundant
-    vnetName: networkModule.outputs.vnetName
-    subnetName: networkModule.outputs.apiManagementSubnetName
-    adminEmail: 'admin@example.com'
-    adminName: 'API Administrator'
-  }
-}
+// Deploy API Management - TEMPORARILY DISABLED FOR INITIAL DEPLOYMENT
+// module apimModule 'modules/apim.bicep' = {
+//   name: 'apimDeployment' 
+//   params: {
+//     location: location
+//     resourceToken: resourceToken
+//     tags: tags
+//     isZoneRedundant: isZoneRedundant
+//     vnetName: networkModule.outputs.vnetName
+//     subnetName: networkModule.outputs.apiManagementSubnetName
+//     adminEmail: 'admin@example.com'
+//     adminName: 'API Administrator'
+//   }
+// }
 
 // Deploy Redis Cache
 module redisModule 'modules/redis.bicep' = {
@@ -124,16 +123,19 @@ module computeModule 'modules/compute.bicep' = {
   }
 }
 
-// Deploy Front Door
+// Deploy Front Door (commented out for South Africa North deployment)
+// Front Door is not available in South Africa North, using Application Gateway instead
+/*
 module frontDoorModule 'modules/frontdoor.bicep' = {
   name: 'frontDoorDeployment'
   params: {
-    location: location
+    location: 'global'  // Front Door always uses global location
     resourceToken: resourceToken
     tags: tags
     appGatewayHostName: appGatewayModule.outputs.appGatewayHostName
   }
 }
+*/
 
 // Deploy Monitoring
 module monitoringModule 'modules/monitoring.bicep' = {
@@ -147,9 +149,9 @@ module monitoringModule 'modules/monitoring.bicep' = {
 
 // Outputs
 output resourceToken string = resourceToken
-output frontDoorEndpoint string = frontDoorModule.outputs.frontDoorEndpoint
+// output frontDoorEndpoint string = frontDoorModule.outputs.frontDoorEndpoint  // Commented out - not deploying Front Door in South Africa North
 output appGatewayPublicIp string = appGatewayModule.outputs.appGatewayPublicIp
-output apiManagementEndpoint string = apimModule.outputs.apiManagementEndpoint
+// output apiManagementEndpoint string = apimModule.outputs.apiManagementEndpoint  // Commented out - APIM module temporarily disabled
 output redisCacheHostName string = redisModule.outputs.redisCacheHostName
 output sqlServerFqdn string = dbModule.outputs.sqlServerFqdn
 output monitoringWorkspaceName string = monitoringModule.outputs.workspaceName

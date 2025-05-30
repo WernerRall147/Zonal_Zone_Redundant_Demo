@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.35.1.17967",
-      "templateHash": "3807708970311917497"
+      "templateHash": "339139744653278525"
     }
   },
   "parameters": {
@@ -86,7 +86,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.35.1.17967",
-              "templateHash": "11560153847213729223"
+              "templateHash": "5655790264699404064"
             }
           },
           "parameters": {
@@ -151,22 +151,7 @@
               "location": "[parameters('location')]",
               "tags": "[parameters('tags')]",
               "properties": {
-                "securityRules": [
-                  {
-                    "name": "AllowInbound",
-                    "properties": {
-                      "priority": 100,
-                      "direction": "Inbound",
-                      "access": "Allow",
-                      "protocol": "*",
-                      "sourceAddressPrefix": "VirtualNetwork",
-                      "sourcePortRange": "*",
-                      "destinationAddressPrefix": "VirtualNetwork",
-                      "destinationPortRange": "*",
-                      "description": "Allow all inbound traffic from VNet"
-                    }
-                  }
-                ]
+                "securityRules": "[concat(createArray(createObject('name', 'AllowInbound', 'properties', createObject('priority', 100, 'direction', 'Inbound', 'access', 'Allow', 'protocol', '*', 'sourceAddressPrefix', 'VirtualNetwork', 'sourcePortRange', '*', 'destinationAddressPrefix', 'VirtualNetwork', 'destinationPortRange', '*', 'description', 'Allow all inbound traffic from VNet')), createObject('name', 'AllowGatewayManager', 'properties', createObject('priority', 110, 'direction', 'Inbound', 'access', 'Allow', 'protocol', 'Tcp', 'sourceAddressPrefix', 'GatewayManager', 'sourcePortRange', '*', 'destinationAddressPrefix', '*', 'destinationPortRange', '65200-65535', 'description', 'Allow Application Gateway management traffic'))), if(equals(copyIndex(), 1), createArray(createObject('name', 'AllowAPIMManagement', 'properties', createObject('priority', 120, 'direction', 'Inbound', 'access', 'Allow', 'protocol', 'Tcp', 'sourceAddressPrefix', 'ApiManagement', 'sourcePortRange', '*', 'destinationAddressPrefix', 'VirtualNetwork', 'destinationPortRange', '3443', 'description', 'Allow APIM management endpoint')), createObject('name', 'AllowAPIMLoadBalancer', 'properties', createObject('priority', 130, 'direction', 'Inbound', 'access', 'Allow', 'protocol', 'Tcp', 'sourceAddressPrefix', 'AzureLoadBalancer', 'sourcePortRange', '*', 'destinationAddressPrefix', 'VirtualNetwork', 'destinationPortRange', '6381-6383', 'description', 'Allow APIM load balancer')), createObject('name', 'AllowAPIMTraffic', 'properties', createObject('priority', 140, 'direction', 'Inbound', 'access', 'Allow', 'protocol', 'Tcp', 'sourceAddressPrefix', 'Internet', 'sourcePortRange', '*', 'destinationAddressPrefix', 'VirtualNetwork', 'destinationPortRange', '80', 'description', 'Allow HTTP traffic to APIM')), createObject('name', 'AllowAPIMTrafficTLS', 'properties', createObject('priority', 150, 'direction', 'Inbound', 'access', 'Allow', 'protocol', 'Tcp', 'sourceAddressPrefix', 'Internet', 'sourcePortRange', '*', 'destinationAddressPrefix', 'VirtualNetwork', 'destinationPortRange', '443', 'description', 'Allow HTTPS traffic to APIM'))), createArray()))]"
               }
             },
             {
@@ -642,7 +627,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.35.1.17967",
-              "templateHash": "15234734014164502352"
+              "templateHash": "2289622792936658604"
             }
           },
           "parameters": {
@@ -707,18 +692,13 @@
               "location": "[parameters('location')]",
               "tags": "[parameters('tags')]",
               "sku": {
-                "name": "Premium",
-                "capacity": "[if(parameters('isZoneRedundant'), 2, 1)]"
+                "name": "Developer",
+                "capacity": 1
               },
               "properties": {
                 "publisherEmail": "[parameters('adminEmail')]",
-                "publisherName": "[parameters('adminName')]",
-                "virtualNetworkConfiguration": {
-                  "subnetResourceId": "[variables('subnetId')]"
-                },
-                "virtualNetworkType": "Internal"
-              },
-              "zones": "[if(parameters('isZoneRedundant'), createArray('1', '2', '3'), createArray('1'))]"
+                "publisherName": "[parameters('adminName')]"
+              }
             },
             {
               "type": "Microsoft.ApiManagement/service/apis",
@@ -802,7 +782,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.35.1.17967",
-              "templateHash": "15382086152754515937"
+              "templateHash": "5685019625013608131"
             }
           },
           "parameters": {
@@ -848,7 +828,7 @@
           "resources": [
             {
               "type": "Microsoft.Cache/redis",
-              "apiVersion": "2023-05-01",
+              "apiVersion": "2024-03-01",
               "name": "[variables('redisName')]",
               "location": "[parameters('location')]",
               "tags": "[parameters('tags')]",
@@ -863,14 +843,13 @@
                 "publicNetworkAccess": "Enabled",
                 "redisConfiguration": {
                   "maxmemory-policy": "allkeys-lru"
-                },
-                "zonalConfiguration": "[if(parameters('isZoneRedundant'), 'Enabled', 'Disabled')]"
+                }
               },
               "zones": "[if(parameters('isZoneRedundant'), parameters('availabilityZones'), createArray(parameters('availabilityZones')[0]))]"
             },
             {
               "type": "Microsoft.Cache/redis/firewallRules",
-              "apiVersion": "2023-05-01",
+              "apiVersion": "2024-03-01",
               "name": "[format('{0}/{1}', variables('redisName'), 'AllowAll')]",
               "properties": {
                 "startIP": "0.0.0.0",
@@ -892,7 +871,7 @@
             },
             "redisCacheHostName": {
               "type": "string",
-              "value": "[reference(resourceId('Microsoft.Cache/redis', variables('redisName')), '2023-05-01').hostName]"
+              "value": "[reference(resourceId('Microsoft.Cache/redis', variables('redisName')), '2024-03-01').hostName]"
             }
           }
         }
@@ -940,7 +919,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.35.1.17967",
-              "templateHash": "1202167434818112557"
+              "templateHash": "12337599631698020303"
             }
           },
           "parameters": {
@@ -1043,7 +1022,8 @@
                 "administratorLogin": "[parameters('adminUsername')]",
                 "administratorLoginPassword": "[parameters('adminPassword')]",
                 "version": "12.0",
-                "publicNetworkAccess": "Disabled"
+                "publicNetworkAccess": "Disabled",
+                "minimalTlsVersion": "1.2"
               }
             },
             {
@@ -1100,7 +1080,7 @@
               "sku": {
                 "name": "Premium",
                 "tier": "Premium",
-                "capacity": "[if(parameters('isZoneRedundant'), 8, 4)]"
+                "capacity": "[if(parameters('isZoneRedundant'), 125, 125)]"
               },
               "properties": {
                 "collation": "SQL_Latin1_General_CP1_CI_AS",
@@ -1203,7 +1183,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.35.1.17967",
-              "templateHash": "9329670777837460171"
+              "templateHash": "5752474315544303607"
             }
           },
           "parameters": {
@@ -1296,8 +1276,6 @@
                 }
               }
             ],
-            "$fxv#0": "IyEvYmluL2Jhc2gKIyBBcHAgU2VydmVyIFNldHVwIFNjcmlwdAoKZWNobyAiSW5zdGFsbGluZyBkZXBlbmRlbmNpZXMuLi4iCmFwdC1nZXQgdXBkYXRlCmFwdC1nZXQgaW5zdGFsbCAteSBuZ2lueAoKIyBDb25maWd1cmUgbmdpbngKY2F0ID4gL3Zhci93d3cvaHRtbC9pbmRleC5odG1sIDw8RU9GCjwhRE9DVFlQRSBodG1sPgo8aHRtbD4KPGhlYWQ+CiAgICA8dGl0bGU+QXBwIFNlcnZlciBEZW1vPC90aXRsZT4KPC9oZWFkPgo8Ym9keT4KICAgIDxoMT5BcHAgU2VydmVyPC9oMT4KICAgIDxwPkluc3RhbmNlOiAkKGhvc3RuYW1lKTwvcD4KICAgIDxwPlpvbmU6ICQoY3VybCAtcyAtSCBNZXRhZGF0YTp0cnVlIC0tbm9wcm94eSAiKiIgImh0dHA6Ly8xNjkuMjU0LjE2OS4yNTQvbWV0YWRhdGEvaW5zdGFuY2UvY29tcHV0ZS96b25lP2FwaS12ZXJzaW9uPTIwMjEtMDItMDEmZm9ybWF0PXRleHQiKTwvcD4KPC9ib2R5Pgo8L2h0bWw+CkVPRgoKIyBTdGFydCBzZXJ2aWNlcwpzeXN0ZW1jdGwgZW5hYmxlIG5naW54CnN5c3RlbWN0bCByZXN0YXJ0IG5naW54CgplY2hvICJBcHAgc2VydmVyIHNldHVwIGNvbXBsZXRlZC4iDQo=",
-            "$fxv#1": "IyEvYmluL2Jhc2gKIyBFU0IgU2VydmVyIFNldHVwIFNjcmlwdAoKZWNobyAiSW5zdGFsbGluZyBkZXBlbmRlbmNpZXMuLi4iCmFwdC1nZXQgdXBkYXRlCmFwdC1nZXQgaW5zdGFsbCAteSBvcGVuamRrLTExLWpkawoKIyBFU0IgU2V0dXAgd291bGQgZ28gaGVyZSBpbiBhIHJlYWwgZGVwbG95bWVudApta2RpciAtcCAvb3B0L2VzYgoKIyBDcmVhdGUgYSBzaW1wbGUgc3RhdHVzIGVuZHBvaW50CmNhdCA+IC9vcHQvZXNiL3N0YXR1cy5zaCA8PEVPRgojIS9iaW4vYmFzaAplY2hvICJDb250ZW50LXR5cGU6IHRleHQvaHRtbCIKZWNobyAiIgplY2hvICI8IURPQ1RZUEUgaHRtbD4iCmVjaG8gIjxodG1sPiIKZWNobyAiPGhlYWQ+PHRpdGxlPkVTQiBTdGF0dXM8L3RpdGxlPjwvaGVhZD4iCmVjaG8gIjxib2R5PiIKZWNobyAiPGgxPkVTQiBTZXJ2ZXI8L2gxPiIKZWNobyAiPHA+SW5zdGFuY2U6IFwkKGhvc3RuYW1lKTwvcD4iCmVjaG8gIjxwPlpvbmU6IFwkKGN1cmwgLXMgLUggTWV0YWRhdGE6dHJ1ZSAtLW5vcHJveHkgJyonICdodHRwOi8vMTY5LjI1NC4xNjkuMjU0L21ldGFkYXRhL2luc3RhbmNlL2NvbXB1dGUvem9uZT9hcGktdmVyc2lvbj0yMDIxLTAyLTAxJmZvcm1hdD10ZXh0Jyk8L3A+IgplY2hvICI8L2JvZHk+IgplY2hvICI8L2h0bWw+IgpFT0YKCmNobW9kICt4IC9vcHQvZXNiL3N0YXR1cy5zaAoKZWNobyAiRVNCIHNlcnZlciBzZXR1cCBjb21wbGV0ZWQuIg0K",
             "subnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('subnetName'))]",
             "vmSize": "Standard_D4s_v3",
             "allVMs": "[concat(variables('appServers'), variables('esbServers'))]"
@@ -1393,7 +1371,7 @@
                 "typeHandlerVersion": "2.1",
                 "autoUpgradeMinorVersion": true,
                 "settings": {
-                  "script": "[if(equals(variables('allVMs')[copyIndex()].role, 'app'), variables('$fxv#0'), variables('$fxv#1'))]"
+                  "script": "[if(equals(variables('allVMs')[copyIndex()].role, 'app'), base64('#!/bin/bash\necho \"Setting up App server\"\napt-get update\napt-get install -y nginx\necho \"App server setup complete\" > /tmp/setup-complete.log'), base64('#!/bin/bash\necho \"Setting up ESB server\"\napt-get update\napt-get install -y redis-server\necho \"ESB server setup complete\" > /tmp/setup-complete.log'))]"
                 },
                 "protectedSettings": {}
               },
@@ -1435,7 +1413,7 @@
         "mode": "Incremental",
         "parameters": {
           "location": {
-            "value": "[parameters('location')]"
+            "value": "global"
           },
           "resourceToken": {
             "value": "[variables('resourceToken')]"

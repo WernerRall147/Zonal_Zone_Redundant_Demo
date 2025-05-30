@@ -36,20 +36,20 @@ resource apiManagement 'Microsoft.ApiManagement/service@2023-05-01-preview' = {
   location: location
   tags: tags
   sku: {
-    name: 'Premium'
-    capacity: isZoneRedundant ? 2 : 1 // More capacity for zone-redundant deployment
+    name: 'Developer' // Use Developer tier for demo, simpler VNet setup
+    capacity: 1
   }
   properties: {
     publisherEmail: adminEmail
     publisherName: adminName
-    // Optional: Deploy in Virtual Network
-    virtualNetworkConfiguration: {
-      subnetResourceId: subnetId
-    }
-    virtualNetworkType: 'Internal' // Set to External or Internal as needed
+    // Temporarily deploy without VNet to avoid connectivity issues
+    // virtualNetworkConfiguration: {
+    //   subnetResourceId: subnetId
+    // }
+    // virtualNetworkType: 'External'
   }
-  // Premium tier supports availability zones
-  zones: isZoneRedundant ? ['1', '2', '3'] : ['1']
+  // Developer tier doesn't support availability zones, but this is a demo
+  // zones: isZoneRedundant ? ['1', '2', '3'] : ['1']
 }
 
 // APIM API

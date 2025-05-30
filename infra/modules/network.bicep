@@ -42,14 +42,14 @@ var subnets = [
   }
 ]
 
-// Create NSGs
-resource networkSecurityGroups 'Microsoft.Network/networkSecurityGroups@2023-05-01' = [for subnet in subnets: {
+// Create NSGs with subnet-specific rules
+resource networkSecurityGroups 'Microsoft.Network/networkSecurityGroups@2023-05-01' = [for (subnet, i) in subnets: {
   name: subnet.nsgName
   location: location
   tags: tags
   properties: {
-    securityRules: [
-      // Default rules will be applied based on the subnet type
+    securityRules: concat([
+      // Default rules for all subnets
       {
         name: 'AllowInbound'
         properties: {
@@ -64,7 +64,81 @@ resource networkSecurityGroups 'Microsoft.Network/networkSecurityGroups@2023-05-
           description: 'Allow all inbound traffic from VNet'
         }
       }
-    ]
+      // Application Gateway v2 management ports (for app gateway subnet)
+      {
+        name: 'AllowGatewayManager'
+        properties: {
+          priority: 110
+          direction: 'Inbound'
+          access: 'Allow'
+          protocol: 'Tcp'
+          sourceAddressPrefix: 'GatewayManager'
+          sourcePortRange: '*'
+          destinationAddressPrefix: '*'
+          destinationPortRange: '65200-65535'
+          description: 'Allow Application Gateway management traffic'
+        }
+      }
+    ], 
+    // APIM-specific rules for apim-subnet (index 1)
+    i == 1 ? [
+      {
+        name: 'AllowAPIMManagement'
+        properties: {
+          priority: 120
+          direction: 'Inbound'
+          access: 'Allow'
+          protocol: 'Tcp'
+          sourceAddressPrefix: 'ApiManagement'
+          sourcePortRange: '*'
+          destinationAddressPrefix: 'VirtualNetwork'
+          destinationPortRange: '3443'
+          description: 'Allow APIM management endpoint'
+        }
+      }
+      {
+        name: 'AllowAPIMLoadBalancer'
+        properties: {
+          priority: 130
+          direction: 'Inbound'
+          access: 'Allow'
+          protocol: 'Tcp'
+          sourceAddressPrefix: 'AzureLoadBalancer'
+          sourcePortRange: '*'
+          destinationAddressPrefix: 'VirtualNetwork'
+          destinationPortRange: '6381-6383'
+          description: 'Allow APIM load balancer'
+        }
+      }
+      {
+        name: 'AllowAPIMTraffic'
+        properties: {
+          priority: 140
+          direction: 'Inbound'
+          access: 'Allow'
+          protocol: 'Tcp'
+          sourceAddressPrefix: 'Internet'
+          sourcePortRange: '*'
+          destinationAddressPrefix: 'VirtualNetwork'
+          destinationPortRange: '80'
+          description: 'Allow HTTP traffic to APIM'
+        }
+      }
+      {
+        name: 'AllowAPIMTrafficTLS'
+        properties: {
+          priority: 150
+          direction: 'Inbound'
+          access: 'Allow'
+          protocol: 'Tcp'
+          sourceAddressPrefix: 'Internet'
+          sourcePortRange: '*'
+          destinationAddressPrefix: 'VirtualNetwork'
+          destinationPortRange: '443'
+          description: 'Allow HTTPS traffic to APIM'
+        }
+      }
+    ] : [])
   }
 }]
 

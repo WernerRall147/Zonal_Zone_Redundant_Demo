@@ -14,7 +14,7 @@ param tags object
 // Variables
 var logAnalyticsWorkspaceName = '${resourceToken}-law'
 var applicationInsightsName = '${resourceToken}-ai'
-var dashboardName = '${resourceToken}-dashboard'
+// var dashboardName = '${resourceToken}-dashboard'  // Commented out while dashboard is disabled
 
 // Log Analytics Workspace
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
@@ -44,6 +44,9 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
   }
 }
 
+// Dashboard temporarily commented out due to API compatibility issues
+// Will be re-enabled after core infrastructure deployment
+/*
 // Dashboard to visualize performance and availability
 resource dashboard 'Microsoft.Portal/dashboards@2020-09-01-preview' = {
   name: dashboardName
@@ -184,6 +187,7 @@ resource dashboard 'Microsoft.Portal/dashboards@2020-09-01-preview' = {
     }
   }
 }
+*/
 
 // Alert Rule to monitor latency
 resource latencyAlertRule 'Microsoft.Insights/metricAlerts@2018-03-01' = {

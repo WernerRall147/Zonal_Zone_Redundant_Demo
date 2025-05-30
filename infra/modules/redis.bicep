@@ -25,7 +25,7 @@ param availabilityZones array = [
 var redisName = '${resourceToken}-redis'
 
 // Redis Cache
-resource redisCache 'Microsoft.Cache/redis@2023-05-01' = {
+resource redisCache 'Microsoft.Cache/redis@2024-03-01' = {
   name: redisName
   location: location
   tags: tags
@@ -41,15 +41,12 @@ resource redisCache 'Microsoft.Cache/redis@2023-05-01' = {
     redisConfiguration: {
       'maxmemory-policy': 'allkeys-lru'
     }
-    // Zone redundancy for high availability
-    // For zonal deployment, we deploy to a specific zone
-    zonalConfiguration: isZoneRedundant ? 'Enabled' : 'Disabled'
   }
   zones: isZoneRedundant ? availabilityZones : [availabilityZones[0]]
 }
 
 // Redis Cache Firewall Rules
-resource redisFirewallRule 'Microsoft.Cache/redis/firewallRules@2023-05-01' = {
+resource redisFirewallRule 'Microsoft.Cache/redis/firewallRules@2024-03-01' = {
   parent: redisCache
   name: 'AllowAll'
   properties: {

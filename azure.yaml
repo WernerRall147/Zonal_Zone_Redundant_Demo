@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: zonal-zone-redundant-demo
+metadata:
+  template: zonal-zone-redundant-demo@0.0.1-beta
+# This project is Infrastructure as Code only - no application services
+# services: {}
+infra:
+  provider: bicep
+  path: ./infra
+  parameters:
+    location: "southafricanorth"
+    envName: "demo"
+    prefix: "azzzr"
+    isZoneRedundant: false
